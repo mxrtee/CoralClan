@@ -1,0 +1,5 @@
+name: CoralClan
+version: '${project.version}'
+main: it.mxrte.coralclan.CoralClan
+commands:
+  clan:

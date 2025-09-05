@@ -1,0 +1,15 @@
+Database:
+    host: "127.0.0.1"
+    port: 3306
+    database: "coralmc"
+    username: "root"
+    password: "CoralMC"
+    cachePrepStmts: true
+    prepStmtCacheSize: 250
+    prepStmtCacheSqlLimit: 2048
+    maximumPoolSize: 10
+    minimumIdle: 10
+    connectionTimeout: 5000
+    leakDetectionThreshold: 15000
+
+request-expire: 10 #Seconds
