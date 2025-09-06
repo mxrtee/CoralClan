@@ -20,6 +20,7 @@ public final class CoralClan extends JavaPlugin {
         dbManager.createClanPlayerTable();
         dbManager.createClanTable();
         dbManager.createClanHomeTable();
+        dbManager.createClanClaimTable();
         langFile.createConfig();
 
     }

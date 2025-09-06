@@ -13,6 +13,7 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -30,6 +31,22 @@ public class ClanCommand implements CommandExecutor {
     private final JavaPlugin plugin;
     private final Clan clanManager;
     private final BukkitAudiences audiences;
+
+    private String createRandomString(int length){
+        String AlphaNumericString = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                + "0123456789";
+        StringBuilder sb = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            int index
+                    = (int)(AlphaNumericString.length()
+                    * Math.random());
+
+            sb.append(AlphaNumericString
+                    .charAt(index));
+        }
+        return sb.toString();
+    }
 
 
     HashMap<UUID, String> request = new HashMap<>();
@@ -397,9 +414,46 @@ public class ClanCommand implements CommandExecutor {
                         .replace("%member%", clanManager.getAllClanMemberName(clan).toString()
                                 .replace("[","")
                                 .replace("]",""))));
+            }
+        } else if (strings[0].equalsIgnoreCase("claim")) {
+            Chunk chunk = player.getLocation().getChunk();
+            if(clanManager.getPlayerClan(player) == null){
+                player.sendMessage(messages.DONT_HAVE_CLAN());
+                return true;
+            }
+            String clan = clanManager.getPlayerClan(player);
 
+            if(!clanManager.isLeaderOrCoLeader(player)){
+                player.sendMessage(messages.NOT_A_LEADER());
+                return true;
             }
 
+            if(clanManager.isClaimed(chunk)){
+                player.sendMessage(messages.ALREADY_CLAIMED());
+                return true;
+            }
+            clanManager.claimChunk(createRandomString(5), clan, chunk);
+            player.sendMessage(messages.CHUNK_CLAIMED());
+
+        } else if (strings[0].equalsIgnoreCase("unclaim")) {
+            Chunk chunk = player.getLocation().getChunk();
+            if(clanManager.getPlayerClan(player) == null){
+                player.sendMessage(messages.DONT_HAVE_CLAN());
+                return true;
+            }
+            String clan = clanManager.getPlayerClan(player);
+
+            if(!clanManager.isLeaderOrCoLeader(player)){
+                player.sendMessage(messages.NOT_A_LEADER());
+                return true;
+            }
+
+            if(!clanManager.isClanChunk(clan, chunk)){
+                player.sendMessage(messages.NOT_YOUR_CLAIM());
+                return true;
+            }
+            clanManager.unClaimChunk(clan, chunk);
+            player.sendMessage(messages.CHUNK_UNCLAIMED());
         }
 
 

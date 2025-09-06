@@ -191,5 +191,21 @@ public class Messages {
         return langFile.getConfig().getStringList("clan-info");
     }
 
+    public String ALREADY_CLAIMED(){
+        return HexUtils.translateColorCodes(langFile.getConfig().getString("already-claimed"));
+    }
+
+    public String CHUNK_CLAIMED(){
+        return HexUtils.translateColorCodes(langFile.getConfig().getString("chunk-claimed"));
+    }
+
+    public String CHUNK_UNCLAIMED(){
+        return HexUtils.translateColorCodes(langFile.getConfig().getString("chunk-unclaimed"));
+    }
+
+    public String NOT_YOUR_CLAIM(){
+        return HexUtils.translateColorCodes(langFile.getConfig().getString("not-your-claim"));
+    }
+
 
 }

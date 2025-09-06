@@ -2,10 +2,7 @@ package it.mxrte.coralclan;
 
 import it.mxrte.coralclan.database.DBManager;
 import it.mxrte.coralclan.utils.ClanRole;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -595,6 +592,80 @@ public class Clan {
         }
 
         return clanMember;
+    }
+
+    public void claimChunk(String id, String name, Chunk chunk){
+        String query = "INSERT INTO clan_claim(claim_id, name, x, z, world) VALUES (?, ?, ?, ?,?)";
+        try(Connection connection = dbmanager.getDataSource().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setString(1, id);
+            statement.setString(2, name);
+            statement.setDouble(3, chunk.getX());
+            statement.setDouble(4, chunk.getZ());
+            statement.setString(5, chunk.getWorld().getName());
+            statement.executeUpdate();
+
+        }catch (SQLException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+    }
+
+    public boolean isClaimed(Chunk chunk){
+        String query = "SELECT name FROM clan_claim WHERE x = ? AND z = ? AND world = ?";
+        try(Connection connection = dbmanager.getDataSource().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setDouble(1, chunk.getX());
+            statement.setDouble(2, chunk.getZ());
+            statement.setString(3, chunk.getWorld().getName());
+            try(ResultSet set = statement.executeQuery()) {
+                return set.next();
+            }catch (SQLException e){
+                Bukkit.getLogger().warning(e.getMessage());
+            }
+
+        }catch (SQLException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+
+        return false;
+    }
+
+    public void unClaimChunk(String name, Chunk chunk){
+        String query = "DELETE FROM clan_claim WHERE name = ? AND x = ? AND z = ? AND world = ?";
+        try(Connection connection = dbmanager.getDataSource().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setString(1, name);
+            statement.setDouble(2, chunk.getX());
+            statement.setDouble(3, chunk.getZ());
+            statement.setString(4, chunk.getWorld().getName());
+            statement.executeUpdate();
+
+        }catch (SQLException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+    }
+
+    public boolean isClanChunk(String name, Chunk chunk) {
+        String query = "SELECT name FROM clan_claim WHERE x = ? AND z = ? AND world = ?";
+        try(Connection connection = dbmanager.getDataSource().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setDouble(1, chunk.getX());
+            statement.setDouble(2, chunk.getZ());
+            statement.setString(3, chunk.getWorld().getName());
+
+            try(ResultSet set = statement.executeQuery()) {
+
+                if(set.next()){
+                    return set.getString("name").equalsIgnoreCase(name);
+                }
+
+            }catch (SQLException e){
+                Bukkit.getLogger().warning(e.getMessage());
+            }
+        }catch (SQLException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+        return false;
     }
 
 }
