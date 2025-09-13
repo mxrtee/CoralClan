@@ -1,5 +1,6 @@
 name: CoralClan
 version: '${project.version}'
 main: it.mxrte.coralclan.CoralClan
+softdepend: [WorldGuard]
 commands:
   clan:

@@ -1,5 +1,16 @@
 package it.mxrte.coralclan.commands;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.flags.Flags;
+import com.sk89q.worldguard.protection.flags.RegionGroup;
+import com.sk89q.worldguard.protection.flags.StateFlag;
+import com.sk89q.worldguard.protection.managers.RegionManager;
+import com.sk89q.worldguard.protection.managers.RemovalStrategy;
+import com.sk89q.worldguard.protection.managers.storage.StorageException;
+import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import it.mxrte.coralclan.Clan;
 import it.mxrte.coralclan.database.DBManager;
 import it.mxrte.coralclan.utils.ClanRole;
@@ -12,10 +23,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
-import org.bukkit.Location;
-import org.bukkit.OfflinePlayer;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -65,6 +73,7 @@ public class ClanCommand implements CommandExecutor {
         }
         Player player = (Player) commandSender;
         Messages messages = new Messages(plugin);
+
 
 
         if(strings.length == 0){
@@ -132,6 +141,9 @@ public class ClanCommand implements CommandExecutor {
                 return true;
             }
             player.sendMessage(messages.CLAN_DISBAND(clanManager.getPlayerClan(player)));
+            for(String str : clanManager.getAllClanChunk(clanManager.getPlayerClan(player))){
+                deleteRegion(str, player.getWorld());
+            }
             clanManager.disbandClan(clanManager.getPlayerClan(player));
 
         } else if (strings[0].equalsIgnoreCase("invite")) {
@@ -225,6 +237,9 @@ public class ClanCommand implements CommandExecutor {
                     return true;
                 }
                 target.sendMessage(messages.CLAN_KICK(clan));
+                for(String str : clanManager.getAllClanChunk(clan)){
+                    removeMember(str, player.getWorld(), player.getUniqueId());
+                }
                 clanManager.removeMember(target);
                 player.sendMessage(messages.PLAYER_KICKED(offlineTarget.getName()));
                 
@@ -232,6 +247,9 @@ public class ClanCommand implements CommandExecutor {
                 if(!clanManager.getOfflinePlayerClan(offlineTarget).equalsIgnoreCase(clan)){
                     player.sendMessage(messages.NOT_IN_CLAN(offlineTarget.getName()));
                     return true;
+                }
+                for(String str : clanManager.getAllClanChunk(clan)){
+                    removeMember(str, player.getWorld(), player.getUniqueId());
                 }
                 clanManager.removeOfflineMember(offlineTarget);
                 player.sendMessage(messages.PLAYER_KICKED(offlineTarget.getName()));
@@ -269,6 +287,9 @@ public class ClanCommand implements CommandExecutor {
                 return true;
             }
             clanManager.promotePlayer(target);
+            for(String str : clanManager.getAllClanChunk(clan)){
+                addMember(str, player.getWorld(), player.getUniqueId());
+            }
             player.sendMessage(messages.PLAYER_PROMOTED(target,clanManager.getPlayerRole(target)));
             target.sendMessage(messages.YOU_ARE_PROMOTED(clanManager.getPlayerRole(target)));
 
@@ -305,6 +326,9 @@ public class ClanCommand implements CommandExecutor {
                 return true;
             }
             clanManager.demotePlayer(target);
+            for(String str : clanManager.getAllClanChunk(clan)){
+                removeMember(str, player.getWorld(), player.getUniqueId());
+            }
             player.sendMessage(messages.PLAYER_DEMOTED(target,clanManager.getPlayerRole(target)));
             target.sendMessage(messages.YOU_ARE_DEMOTED(clanManager.getPlayerRole(target)));
 
@@ -371,6 +395,9 @@ public class ClanCommand implements CommandExecutor {
             String clan = request.get(player.getUniqueId());
             request.remove(player.getUniqueId());
             clanManager.setRecruit(clan, player);
+            for(String str : clanManager.getAllClanChunk(clan)){
+                addMember(str, player.getWorld(), player.getUniqueId());
+            }
             player.sendMessage(messages.CLAN_JOIN(clan));
             for(UUID uuid : clanManager.getAllClanPlayer(clan)){
                 Player players = Bukkit.getPlayer(uuid);
@@ -432,31 +459,109 @@ public class ClanCommand implements CommandExecutor {
                 player.sendMessage(messages.ALREADY_CLAIMED());
                 return true;
             }
-            clanManager.claimChunk(createRandomString(5), clan, chunk);
+            String chunk_code = "chunk_" + createRandomString(5);
+            clanManager.claimChunk(chunk_code, clan, chunk);
+            createRegion(chunk_code,chunk, clan);
             player.sendMessage(messages.CHUNK_CLAIMED());
 
-        } else if (strings[0].equalsIgnoreCase("unclaim")) {
-            Chunk chunk = player.getLocation().getChunk();
-            if(clanManager.getPlayerClan(player) == null){
-                player.sendMessage(messages.DONT_HAVE_CLAN());
-                return true;
-            }
-            String clan = clanManager.getPlayerClan(player);
+            } else if (strings[0].equalsIgnoreCase("unclaim")) {
+                Chunk chunk = player.getLocation().getChunk();
+                if(clanManager.getPlayerClan(player) == null){
+                    player.sendMessage(messages.DONT_HAVE_CLAN());
+                    return true;
+                }
+                String clan = clanManager.getPlayerClan(player);
 
-            if(!clanManager.isLeaderOrCoLeader(player)){
-                player.sendMessage(messages.NOT_A_LEADER());
-                return true;
-            }
+                if(!clanManager.isLeaderOrCoLeader(player)){
+                    player.sendMessage(messages.NOT_A_LEADER());
+                    return true;
+                }
 
-            if(!clanManager.isClanChunk(clan, chunk)){
-                player.sendMessage(messages.NOT_YOUR_CLAIM());
-                return true;
+                if(!clanManager.isClanChunk(clan, chunk)){
+                    player.sendMessage(messages.NOT_YOUR_CLAIM());
+                    return true;
             }
+            deleteRegion(clanManager.getChunkID(chunk), player.getWorld());
             clanManager.unClaimChunk(clan, chunk);
             player.sendMessage(messages.CHUNK_UNCLAIMED());
         }
 
 
         return false;
+    }
+
+    private void createRegion(String chunk_code, Chunk chunk, String clan){
+        RegionManager manager = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(chunk.getWorld()));
+        BlockVector3 vec1 = BlockVector3.at(chunk.getX() * 16, 0, chunk.getZ() * 16);
+        BlockVector3 vec2 = BlockVector3.at(chunk.getX() * 16 + 15, chunk.getWorld().getMaxHeight(), chunk.getZ() * 16 + 15);
+        if(!ProtectedRegion.isValidId(chunk_code)) return;
+        ProtectedCuboidRegion region = new ProtectedCuboidRegion(chunk_code, vec1, vec2);
+        for(UUID uuid : clanManager.getAllRegionOwnerPlayer(clan)){
+            region.getOwners().addPlayer(uuid);
+        }
+        for(UUID uuid : clanManager.getAllRegioneMemberPlayer(clan)){
+            region.getMembers().addPlayer(uuid);
+        }
+        region.setFlag(Flags.BLOCK_BREAK, StateFlag.State.ALLOW);
+        region.setFlag(Flags.BLOCK_BREAK.getRegionGroupFlag(), RegionGroup.OWNERS);
+        region.setFlag(Flags.BLOCK_PLACE, StateFlag.State.ALLOW);
+        region.setFlag(Flags.BLOCK_PLACE.getRegionGroupFlag(), RegionGroup.OWNERS);
+        region.setFlag(Flags.BUILD, StateFlag.State.ALLOW);
+        region.setFlag(Flags.BUILD.getRegionGroupFlag(), RegionGroup.OWNERS);
+        region.setFlag(Flags.CHEST_ACCESS, StateFlag.State.ALLOW);
+        region.setFlag(Flags.CHEST_ACCESS.getRegionGroupFlag(), RegionGroup.MEMBERS);
+        region.setFlag(Flags.INTERACT, StateFlag.State.ALLOW);
+        region.setFlag(Flags.INTERACT.getRegionGroupFlag(), RegionGroup.MEMBERS);
+        region.setFlag(Flags.USE, StateFlag.State.ALLOW);
+        region.setFlag(Flags.USE.getRegionGroupFlag(), RegionGroup.MEMBERS);
+        manager.addRegion(region);
+    }
+
+    private void deleteRegion(String id, World world){
+        RegionManager manager = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+        try {
+            if(manager.hasRegion(id)){
+                manager.removeRegion(id, RemovalStrategy.UNSET_PARENT_IN_CHILDREN);
+                manager.save();
+            }else {
+                Bukkit.getLogger().warning("La region non esiste");
+            }
+        }catch (StorageException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+    }
+
+    private void removeMember(String id, World world, UUID uuid){
+        RegionManager manager = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+
+        if(!manager.hasRegion(id)) return;
+        OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
+        System.out.println("qui ci arriviamo");
+        if(clanManager.getOfflinePlayerRole(player).equals(ClanRole.OFFICER) || clanManager.getOfflinePlayerRole(player).equals(ClanRole.COLEADER)){
+            if(!manager.getRegion(id).getOwners().contains(uuid)) return;
+            System.out.println("MA ANCHE QUI PERO");
+            manager.getRegion(id).getOwners().removePlayer(uuid);
+
+        }else if(clanManager.getOfflinePlayerRole(player).equals(ClanRole.MEMBER) || clanManager.getOfflinePlayerRole(player).equals(ClanRole.RECRUIT)){
+            System.out.println("qui ci arriviamo");
+            if(!manager.getRegion(id).getOwners().contains(uuid)) return;
+            System.out.println("MA ANCHE QUI PERO");
+            manager.getRegion(id).getMembers().removePlayer(uuid);
+        }
+    }
+
+    private void addMember(String id, World world, UUID uuid){
+        RegionManager manager = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+
+        if(!manager.hasRegion(id)) return;
+        OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
+        if(clanManager.getOfflinePlayerRole(player).equals(ClanRole.OFFICER) || clanManager.getOfflinePlayerRole(player).equals(ClanRole.COLEADER)){
+            if(manager.getRegion(id).getOwners().contains(uuid)) return;
+            manager.getRegion(id).getOwners().addPlayer(uuid);
+
+        }else if(clanManager.getOfflinePlayerRole(player).equals(ClanRole.MEMBER) || clanManager.getOfflinePlayerRole(player).equals(ClanRole.RECRUIT)){
+            if(manager.getRegion(id).getOwners().contains(uuid)) return;
+            manager.getRegion(id).getMembers().addPlayer(uuid);
+        }
     }
 }

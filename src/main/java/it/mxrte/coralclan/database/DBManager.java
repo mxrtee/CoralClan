@@ -85,7 +85,7 @@ public class DBManager {
     }
 
     public void createClanClaimTable(){
-        String query = "CREATE TABLE IF NOT EXISTS clan_claim(claim_id VARCHAR(5) PRIMARY KEY, name VARCHAR(255), x DOUBLE, z DOUBLE, world VARCHAR(255))";
+        String query = "CREATE TABLE IF NOT EXISTS clan_claim(claim_id VARCHAR(36) PRIMARY KEY, name VARCHAR(255), x DOUBLE, z DOUBLE, world VARCHAR(255))";
         try (Connection connection = dataSource.getConnection()) {
             PreparedStatement statement = connection.prepareStatement(query);
             statement.execute();

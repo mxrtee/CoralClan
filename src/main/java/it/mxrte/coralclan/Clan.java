@@ -668,4 +668,75 @@ public class Clan {
         return false;
     }
 
+    public String getChunkID(Chunk chunk){
+        String query = "SELECT claim_id FROM clan_claim WHERE x = ? AND z = ? and world = ?";
+        try(Connection connection = dbmanager.getDataSource().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setDouble(1, chunk.getX());
+            statement.setDouble(2, chunk.getZ());
+            statement.setString(3, chunk.getWorld().getName());
+            try(ResultSet set = statement.executeQuery()) {
+                if(set.next()){
+                    return set.getString("claim_id");
+                }
+            }catch (SQLException e){
+                Bukkit.getLogger().warning(e.getMessage());
+            }
+        }catch (SQLException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+
+        return null;
+    }
+
+    public List<UUID> getAllRegionOwnerPlayer(String name){
+        List<UUID> uuids = new ArrayList<>();
+
+        for(UUID uuid : getAllClanPlayer(name)){
+            OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
+            if(getOfflinePlayerRole(player).equals(ClanRole.LEADER) || getOfflinePlayerRole(player).equals(ClanRole.COLEADER)
+            || getOfflinePlayerRole(player).equals(ClanRole.OFFICER)){
+                uuids.add(uuid);
+            }
+        }
+
+        return uuids;
+    }
+
+    public List<UUID> getAllRegioneMemberPlayer(String name){
+        List<UUID> uuids = new ArrayList<>();
+
+        for(UUID uuid : getAllClanPlayer(name)){
+            OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
+            if(getOfflinePlayerRole(player).equals(ClanRole.MEMBER) || getOfflinePlayerRole(player).equals(ClanRole.RECRUIT)){
+                uuids.add(uuid);
+            }
+        }
+
+        return uuids;
+    }
+
+    public List<String> getAllClanChunk(String name){
+        List<String> list = new ArrayList<>();
+        String query = "SELECT claim_id FROM clan_claim WHERE name = ?";
+        try(Connection connection = dbmanager.getDataSource().getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setString(1, name);
+            try(ResultSet set = statement.executeQuery()) {
+                while (set.next()){
+                    list.add(set.getString("claim_id"));
+                }
+            }catch (SQLException e){
+                Bukkit.getLogger().warning(e.getMessage());
+            }
+
+
+        }catch (SQLException e){
+            Bukkit.getLogger().warning(e.getMessage());
+        }
+
+
+        return list;
+    }
+
 }
